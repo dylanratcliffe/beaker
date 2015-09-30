@@ -520,7 +520,45 @@ module Beaker
           end
         end
 
+        # Set up r10k on a host
+        # @param [Host, Array<Host>] hosts One or more hosts to act upon
+        def install_r10k_on hosts
+          block_on hosts do |host|
+            # Look in a bunch of places for the ruby executable
+            # Check on the path first
+            if host.check_for_command('ruby')
+              host[:rubybindir] = on(host,'which ruby').stdout.chomp("\n").chomp('/ruby')
+            elsif host.file_exist?("#{host[:privatebindir]}/ruby")
+              host[:rubybindir] = host[:privatebindir]
+            elsif host.file_exist?("#{host[:puppetbin]}/ruby")
+              host[:rubybindir] = host[:puppetbin]
+            end
 
+            if on(host,"#{host[:rubybindir]}/gem list --local").stdout =~ /r10k/
+              # Do nothing
+            else
+              on host, "#{host[:rubybindir]}/gem install r10k"
+            end
+          end
+        end
+
+        # Runs an r10k deploy against a specific r10k config file
+        # @param [Host, Array<Host>] hosts One or more hosts to act upon
+        # @param [Hash{Symbol=>String}] opts Options to alter execution.
+        #
+        # @option [Boolean] :puppetfile Weather or not to also deploy modules contained in the Puppetfile
+        # @option [String] :configfile The r10k.yaml file to run against, *optional*.
+        # @option [Array<String>] :environments The environments (git branches) to deploy, defaults to all
+        def r10k_deploy(hosts, opts = {:puppetfile => true})
+          block_on hosts do |host|
+            command = []
+            command << ["#{host[:rubybindir]}/r10k",'deploy','environment']
+            command << opts[:environments] if opts[:environments]
+            command << '-p' if opts[:puppetfile]
+            command << "-c #{opts[:configfile]}" if opts[:configfile]
+            on(host,command.flatten.join(' '))
+          end
+        end
       end
     end
   end
