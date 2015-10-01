@@ -549,7 +549,9 @@ module Beaker
         # @option [Boolean] :puppetfile Weather or not to also deploy modules contained in the Puppetfile
         # @option [String] :configfile The r10k.yaml file to run against, *optional*.
         # @option [Array<String>] :environments The environments (git branches) to deploy, defaults to all
-        def r10k_deploy(hosts, opts = {:puppetfile => true})
+        def r10k_deploy(hosts, opts = {})
+          # Default :puppetfile to true if someone passis in a hash that does not include it
+          opts = {:puppetfile => true}.merge(opts)
           block_on hosts do |host|
             command = []
             command << ["#{host[:rubybindir]}/r10k",'deploy','environment']
